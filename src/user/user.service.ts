@@ -47,7 +47,11 @@ export class UserService {
         })
         .getOne();
 
-      if (checkrecivermail && checkrecivermail) {
+      if (
+        checkrecivermail &&
+        checkrecivermail &&
+        checkstatus.status === Status.accepted
+      ) {
         return { Message: 'You Cant Send The Request' };
       } else {
         const getId = await getConnection()
