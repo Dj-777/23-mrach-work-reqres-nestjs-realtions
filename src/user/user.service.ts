@@ -1,11 +1,12 @@
 import { Body, Injectable, Param } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import console from 'console';
+
 import { AddUserToFamily, Status } from 'entities/addusertofamily.entity';
 import { User } from 'entities/user.entities';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { getConnection, Repository } from 'typeorm';
 import { AddUserToFamilyDto } from './dto/addusertofamily.dto';
+import { ResultDto } from './dto/result.dto';
 import { UserDto } from './dto/user.dto';
 
 @Injectable()
@@ -34,7 +35,6 @@ export class UserService {
       const senderemailid = await this.userrepo.findOne({
         where: { email: emails },
       });
-
       const checkstatus = await getConnection()
         .createQueryBuilder()
         .select('AddUserToFamily.status')
@@ -49,11 +49,13 @@ export class UserService {
 
       if (
         checkrecivermail &&
-        checkrecivermail &&
-        checkstatus.status === Status.accepted
+        senderemailid.id &&
+        (checkstatus.status === Status.Pending ||
+          checkstatus.status === Status.accepted)
       ) {
         return { Message: 'You Cant Send The Request' };
       } else {
+        // const getId = await getConnection()
         const getId = await getConnection()
           .createQueryBuilder()
           .select('User.id')
@@ -71,6 +73,22 @@ export class UserService {
           //.orUpdate({ conflict_target: ['url'], overwrite: ['User'] })
           .execute();
         return InsertWithUserId;
+        //   .createQueryBuilder()
+        //   .select('User.id')
+        //   .from(User, 'User')
+        //   .where('User.email=:email', { email: emails })
+        //   .getOne();
+        // const InsertWithUserId = await getConnection()
+        //   .createQueryBuilder()
+        //   .insert()
+        //   .into(AddUserToFamily)
+        //   .values({
+        //     email: addusertofamilydto.email,
+        //     User: getId,
+        //   })
+        //   //.orUpdate({ conflict_target: ['url'], overwrite: ['User'] })
+        //   .execute();
+        // return InsertWithUserId;
       }
     } else {
       return 'You Have To Register First';
@@ -102,6 +120,63 @@ export class UserService {
       }
     } else {
       return { Message: 'You Have to Register First For Show Who Request You' };
+    }
+  }
+
+  async Result(
+    @Param('email') email: string,
+    @Body() resultdto: ResultDto,
+  ): Promise<any> {
+    if (await this.addusertofamilyrepo.findOne({ where: { email: email } })) {
+      const senderemailid = await this.userrepo.findOne({
+        where: { email: resultdto.email },
+      });
+      const checkstatus = await getConnection()
+        .createQueryBuilder()
+        .select('AddUserToFamily.status')
+        .from(AddUserToFamily, 'AddUserToFamily')
+        .where('AddUserToFamily.email =:email', {
+          email: email,
+        })
+        .where('AddUserToFamily.userId=:userId', {
+          userId: senderemailid.id,
+        })
+        .getOne();
+      // if (checkstatus.status === Status.Pending) {
+      const UpdateStatus = await getConnection()
+        .createQueryBuilder()
+        .update(AddUserToFamily)
+        .set({ status: resultdto.status })
+        .where('email=:email', { email: email })
+        .andWhere('userId=:user', { user: senderemailid.id })
+        .execute();
+      const checkstatusafterupdate = await getConnection()
+        .createQueryBuilder()
+        .select('AddUserToFamily.status')
+        .from(AddUserToFamily, 'AddUserToFamily')
+        .where('AddUserToFamily.email =:email', {
+          email: email,
+        })
+        .where('AddUserToFamily.userId=:userId', {
+          userId: senderemailid.id,
+        })
+        .getOne();
+
+      if (checkstatusafterupdate.status === Status.rejected) {
+        const DeleteChangeStatus = await getConnection()
+          .createQueryBuilder()
+          .delete()
+          .from(AddUserToFamily)
+          .where('email=:email', { email: email })
+          //.andWhere('AddUserToFamiy.userId=:user', { user: senderemailid.id })
+          .execute();
+      }
+      // /}
+      //  else {
+      //   return 'You Can Rejcet Or Accepte The Request Onces You Rejected/Accepted';
+      // }
+    } else {
+      return 'Make Sure You Have Request';
     }
   }
 }
