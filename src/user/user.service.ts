@@ -45,6 +45,7 @@ export class UserService {
         .where('AddUserToFamily.userId=:userId', {
           userId: senderemailid.id,
         })
+        .orderBy('AddUserToFamily.status','ASC')
         .getOne();
 
       if (
@@ -123,10 +124,7 @@ export class UserService {
     }
   }
 
-  async Result(
-    @Param('email') email: string,
-    @Body() resultdto: ResultDto,
-  ): Promise<any> {
+  async Result(  @Param('email') email: string, @Body() resultdto: ResultDto): Promise<any> {
     if (await this.addusertofamilyrepo.findOne({ where: { email: email } })) {
       const senderemailid = await this.userrepo.findOne({
         where: { email: resultdto.email },
@@ -141,40 +139,45 @@ export class UserService {
         .where('AddUserToFamily.userId=:userId', {
           userId: senderemailid.id,
         })
+        .orderBy('AddUserToFamily.status','ASC')
         .getOne();
-      // if (checkstatus.status === Status.Pending) {
+      if (checkstatus.status === Status.Pending) 
+      {
+      const SelectPending = await this.addusertofamilyrepo.findOne({where:{status:Status.Pending}})
       const UpdateStatus = await getConnection()
         .createQueryBuilder()
         .update(AddUserToFamily)
         .set({ status: resultdto.status })
         .where('email=:email', { email: email })
         .andWhere('userId=:user', { user: senderemailid.id })
+        .andWhere(SelectPending)
         .execute();
-      const checkstatusafterupdate = await getConnection()
-        .createQueryBuilder()
-        .select('AddUserToFamily.status')
-        .from(AddUserToFamily, 'AddUserToFamily')
-        .where('AddUserToFamily.email =:email', {
-          email: email,
-        })
-        .where('AddUserToFamily.userId=:userId', {
-          userId: senderemailid.id,
-        })
-        .getOne();
+        return UpdateStatus;
+      // const checkstatusafterupdate = await getConnection()
+      //   .createQueryBuilder()
+      //   .select('AddUserToFamily.status')
+      //   .from(AddUserToFamily, 'AddUserToFamily')
+      //   .where('AddUserToFamily.email =:email', {
+      //     email: email,
+      //   })
+      //   .where('AddUserToFamily.userId=:userId', {
+      //     userId: senderemailid.id,
+      //   })
+      //   .getOne();
 
-      if (checkstatusafterupdate.status === Status.rejected) {
-        const DeleteChangeStatus = await getConnection()
-          .createQueryBuilder()
-          .delete()
-          .from(AddUserToFamily)
-          .where('email=:email', { email: email })
-          //.andWhere('AddUserToFamiy.userId=:user', { user: senderemailid.id })
-          .execute();
-      }
-      // /}
-      //  else {
-      //   return 'You Can Rejcet Or Accepte The Request Onces You Rejected/Accepted';
+      // if (checkstatusafterupdate.status === Status.rejected) {
+      //   const DeleteChangeStatus = await getConnection()
+      //     .createQueryBuilder()
+      //     .delete()
+      //     .from(AddUserToFamily)
+      //     .where('email=:email', { email: email })
+      //     //.andWhere('AddUserToFamiy.userId=:user', { user: senderemailid.id })
+      //     .execute();
       // }
+      }
+      else {
+        return 'You Can Rejcet Or Accepte The Request Onces You Rejected/Accepted';
+      }
     } else {
       return 'Make Sure You Have Request';
     }

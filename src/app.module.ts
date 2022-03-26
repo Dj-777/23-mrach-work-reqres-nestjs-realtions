@@ -14,7 +14,7 @@ import { UserModule } from './user/user.module';
       host: 'localhost',
       port: 3306,
       username: 'root',
-      password: 'password',
+      password: 'root',
       database: '23march',
       synchronize: true,
       logging: true,
