@@ -17,27 +17,26 @@ export class UserService {
 
     @InjectRepository(AddUserToFamily)
     private readonly addusertofamilyrepo: Repository<AddUserToFamily>,
-  ) { }
+  ) {}
 
-
-//Register User
+  //Register User
   async InsertUser(userdto: UserDto): Promise<any> {
-    const findEmail = await this.userrepo.findOne(({ where: { email: userdto.email } }))
+    const findEmail = await this.userrepo.findOne({
+      where: { email: userdto.email },
+    });
     if (findEmail) {
-      return { Message: `You can't register with this email becuse user is already registred with this email address` }
-    }
-    else {
-
+      return {
+        Message: `You can't register with this email becuse user is already registred with this email address`,
+      };
+    } else {
       const user = await this.userrepo.create(userdto);
       this.userrepo.save(user);
       return user;
     }
   }
-//Register User
+  //Register User
 
-
-
-//Send Request For Family 
+  //Send Request For Family
   async AddUserToFamily(
     @Param('emails') emails: string,
     @Body() addusertofamilydto: AddUserToFamilyDto,
@@ -138,7 +137,10 @@ export class UserService {
     }
   }
 
-  async Result(@Param('email') email: string, @Body() resultdto: ResultDto): Promise<any> {
+  async Result(
+    @Param('email') email: string,
+    @Body() resultdto: ResultDto,
+  ): Promise<any> {
     if (await this.addusertofamilyrepo.findOne({ where: { email: email } })) {
       const senderemailid = await this.userrepo.findOne({
         where: { email: resultdto.email },
@@ -156,7 +158,9 @@ export class UserService {
         .orderBy('AddUserToFamily.status', 'ASC')
         .getOne();
       if (checkstatus.status === Status.Pending) {
-        const SelectPending = await this.addusertofamilyrepo.findOne({ where: { status: Status.Pending } })
+        const SelectPending = await this.addusertofamilyrepo.findOne({
+          where: { status: Status.Pending },
+        });
         const UpdateStatus = await getConnection()
           .createQueryBuilder()
           .update(AddUserToFamily)
@@ -166,36 +170,38 @@ export class UserService {
           .andWhere(SelectPending)
           .execute();
         // return UpdateStatus;
-        const checkstatusafterupdate = await getConnection()
-          .createQueryBuilder()
-          .select('AddUserToFamily.status')
-          .from(AddUserToFamily, 'AddUserToFamily')
-          .where('AddUserToFamily.email =:email', {
-            email: email,
-          })
-          .where('AddUserToFamily.userId=:userId', {
-            userId: senderemailid.id,
-          })
-          .getOne();
-        //return checkstatusafterupdate.status;
-
-        if (checkstatusafterupdate.status === Status.accepted) {
-          const reciveremailId = await this.userrepo.findOne({ where: { email: email } })
-          const InsertIntoFamily = await getConnection()
+        if (UpdateStatus) {
+          const checkstatusafterupdate = await getConnection()
             .createQueryBuilder()
-            .insert()
-            .into(Family)
-            .values({
-              senderId: senderemailid.id,
-              reciverId: reciveremailId.id
+            .select('AddUserToFamily.status')
+            .from(AddUserToFamily, 'AddUserToFamily')
+            .where('AddUserToFamily.email =:email', {
+              email: email,
             })
-            .execute();
-          return InsertIntoFamily;
-        }
-        else {
-          return { Message: 'You Are Rejcted the Request' }
-        }
+            .where('AddUserToFamily.userId=:userId', {
+              userId: senderemailid.id,
+            })
+            .getOne();
+          //return checkstatusafterupdate.status;
 
+          if (checkstatusafterupdate.status === Status.accepted) {
+            const reciveremailId = await this.userrepo.findOne({
+              where: { email: email },
+            });
+            const InsertIntoFamily = await getConnection()
+              .createQueryBuilder()
+              .insert()
+              .into(Family)
+              .values({
+                senderId: senderemailid.id,
+                reciverId: reciveremailId.id,
+              })
+              .execute();
+            return InsertIntoFamily;
+          } else {
+            return { Message: 'You Are Rejcted the Request' };
+          }
+        }
 
         // const checkstatusafterupdate = await getConnection()
         //   .createQueryBuilder()
@@ -218,10 +224,37 @@ export class UserService {
         //     //.andWhere('AddUserToFamiy.userId=:user', { user: senderemailid.id })
         //     .execute();
         // }
+      } else if (checkstatus.status === Status.accepted) {
+        const SelectAccepted = await this.addusertofamilyrepo.findOne({
+          where: { status: Status.accepted },
+        });
+        const reciveremailId = await this.userrepo.findOne({
+          where: { email: email },
+        });
+        const UpdateStatus = await getConnection()
+          .createQueryBuilder()
+          .update(AddUserToFamily)
+          .set({ status: resultdto.status })
+          .where('email=:email', { email: email })
+          .andWhere('userId=:user', { user: senderemailid.id })
+          .andWhere(SelectAccepted)
+          .execute();
+        if (UpdateStatus) {
+          const Deletefamily = await getConnection()
+            .createQueryBuilder()
+            .delete()
+            .from(Family)
+            .where('senderId =:senderId', { senderId: senderemailid.id })
+            .andWhere('reciverId=:reciverId', { reciverId: reciveremailId.id })
+            .execute();
+          return { Message: `You Remove ${reciveremailId.email} From Family` };
+        }
 
-      }
-      else {
-        return { Message: `You Can't Rejcet Or Accepte The Request Onces You Rejected/Accepted` };
+        return { Message: `You Are UpDated Request With ${resultdto.status}` };
+      } else {
+        return {
+          Message: `You Can't Pending Or Accepte The Request Onces You Rejected/Accepted`,
+        };
       }
     } else {
       return 'Make Sure You Have Request';
