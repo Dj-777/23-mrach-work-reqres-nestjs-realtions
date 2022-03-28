@@ -9,7 +9,7 @@ export class User {
   @Column()
   firstname: string;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
 
   @OneToMany(() => AddUserToFamily, (AddUserToFamily) => AddUserToFamily.User)

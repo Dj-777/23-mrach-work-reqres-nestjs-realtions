@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AddUserToFamily } from 'entities/addusertofamily.entity';
+import { Family } from 'entities/family.entites';
 import { User } from 'entities/user.entities';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,7 +19,7 @@ import { UserModule } from './user/user.module';
       database: '23march',
       synchronize: true,
       logging: true,
-      entities: [User, AddUserToFamily],
+      entities: [User, AddUserToFamily , Family],
     }),
   ],
   controllers: [AppController],
